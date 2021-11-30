@@ -1,4 +1,4 @@
-package com.gitee.nowtd.mdbs;
+package com.github.libkodi.mdbs;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,12 +11,12 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.gitee.nowtd.mdbs.config.DataSource;
-import com.gitee.nowtd.mdbs.entity.SqlSessionFactoryEntity;
-import com.gitee.nowtd.mdbs.interfaces.InitialDataSource;
-import com.gitee.nowtd.mdbs.interfaces.InitialSqlSessionFactory;
-import com.gitee.nowtd.mdbs.interfaces.SqlSessionCallback;
-import com.gitee.nowtd.mdbs.properties.MultipartDataSourceProperties;
+import com.github.libkodi.mdbs.config.DataSource;
+import com.github.libkodi.mdbs.entity.SqlSessionFactoryEntity;
+import com.github.libkodi.mdbs.interfaces.InitialDataSource;
+import com.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
+import com.github.libkodi.mdbs.interfaces.SqlSessionCallback;
+import com.github.libkodi.mdbs.properties.MultipartDataSourceProperties;
 
 public class MultipartDataSource {
 	private static MultipartDataSource instance = null; // 单例

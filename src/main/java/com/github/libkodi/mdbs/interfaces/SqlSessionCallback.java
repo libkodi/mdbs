@@ -1,4 +1,4 @@
-package com.gitee.nowtd.mdbs.interfaces;
+package com.github.libkodi.mdbs.interfaces;
 
 import org.apache.ibatis.session.SqlSession;
 

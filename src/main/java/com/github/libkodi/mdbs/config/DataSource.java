@@ -1,4 +1,4 @@
-package com.gitee.nowtd.mdbs.config;
+package com.github.libkodi.mdbs.config;
 
 import lombok.Data;
 

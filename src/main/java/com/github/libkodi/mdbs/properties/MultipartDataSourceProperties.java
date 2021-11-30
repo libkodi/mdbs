@@ -1,10 +1,10 @@
-package com.gitee.nowtd.mdbs.properties;
+package com.github.libkodi.mdbs.properties;
 
 import java.util.HashMap;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import com.gitee.nowtd.mdbs.config.DataSource;
+import com.github.libkodi.mdbs.config.DataSource;
 
 import lombok.Data;
 

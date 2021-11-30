@@ -8,7 +8,7 @@
         <version>2.1.4.RELEASE</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-  <groupId>com.gitee.nowtd</groupId>
+  <groupId>com.github.libkodi</groupId>
   <artifactId>multipart-datasource</artifactId>
   <version>1.0.0</version>
   

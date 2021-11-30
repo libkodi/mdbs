@@ -9,13 +9,13 @@
 ### 使用
 ##### 1.下载本源码
 ```
-git clone https://gitee.com/nowtd/mdbs.git
+git clone https://github.com/libkodi/mdbs.git
 ```
 
 ##### 2.引入
 ```
 <dependency>
-    <groupId>com.gitee.nowtd</groupId>
+    <groupId>com.github.libkodi</groupId>
     <artifactId>multipart-datasource</artifactId>
     <version>1.0.0</version>
 </dependency>
