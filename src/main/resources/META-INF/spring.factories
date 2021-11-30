@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.gitee.nowtd.mdbs.MultipartDataSourceConfiguration
+com.github.libkodi.mdbs.MultipartDataSourceConfiguration
