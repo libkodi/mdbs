@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.github.libkodi.mdbs.MultipartDataSourceConfiguration
+io.github.libkodi.mdbs.MultipartDataSourceConfiguration

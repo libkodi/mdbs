@@ -1,4 +1,4 @@
-package com.github.libkodi.mdbs;
+package io.github.libkodi.mdbs;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,12 +11,12 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.github.libkodi.mdbs.config.DataSource;
-import com.github.libkodi.mdbs.entity.SqlSessionFactoryEntity;
-import com.github.libkodi.mdbs.interfaces.InitialDataSource;
-import com.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
-import com.github.libkodi.mdbs.interfaces.SqlSessionCallback;
-import com.github.libkodi.mdbs.properties.MultipartDataSourceProperties;
+import io.github.libkodi.mdbs.config.DataSource;
+import io.github.libkodi.mdbs.entity.SqlSessionFactoryEntity;
+import io.github.libkodi.mdbs.interfaces.InitialDataSource;
+import io.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
+import io.github.libkodi.mdbs.interfaces.SqlSessionCallback;
+import io.github.libkodi.mdbs.properties.MultipartDataSourceProperties;
 
 public class MultipartDataSource {
 	private static MultipartDataSource instance = null; // 单例

@@ -1,11 +1,10 @@
-package com.github.libkodi.mdbs.properties;
+package io.github.libkodi.mdbs.properties;
 
 import java.util.HashMap;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import com.github.libkodi.mdbs.config.DataSource;
-
+import io.github.libkodi.mdbs.config.DataSource;
 import lombok.Data;
 
 @Data

@@ -1,4 +1,4 @@
-package com.github.libkodi.mdbs.config;
+package io.github.libkodi.mdbs.config;
 
 import lombok.Data;
 

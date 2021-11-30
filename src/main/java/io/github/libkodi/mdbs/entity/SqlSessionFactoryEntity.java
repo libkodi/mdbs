@@ -1,4 +1,4 @@
-package com.github.libkodi.mdbs.entity;
+package io.github.libkodi.mdbs.entity;
 
 import org.apache.ibatis.session.SqlSessionFactory;
 
