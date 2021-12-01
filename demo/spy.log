@@ -24,3 +24,13 @@
 1638349519352|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
 1638349520087|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
 1638349520671|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638350866917|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638350867344|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638350867521|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638350867856|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638350868035|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638351099046|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638351099696|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638351099872|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638351101744|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;
+1638351101910|0|statement|connection 0|url jdbc:p6spy:sqlite:./db/test2.db|select name from test limit 0,1;|select name from test limit 0,1;

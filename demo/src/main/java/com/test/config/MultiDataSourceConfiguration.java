@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
-import io.github.libkodi.mdbs.config.DataSourceProperty;
 import io.github.libkodi.mdbs.interfaces.InitialDataSource;
 import io.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -23,16 +22,15 @@ public class MultiDataSourceConfiguration {
     @Bean 
     public InitialDataSource initialDataSource() { 
         return (databaseId, pool, ctx) -> { 
+        	pool.setDriver("com.p6spy.engine.spy.P6SpyDriver");
+        	
         	if (databaseId.equals("primary")) {
-                DataSourceProperty info = ctx.getProperties().getInfo(databaseId);
-                pool.setUrl(info.getUrl());
-                pool.setDriver(info.getDriver());
-                pool.setUsername(info.getUsername());
-                pool.setPassword(info.getPassword());
-            } else {
-                // 1.可以通过主数据库查出连接信息
-                // 2.也可以通过properties取出设置好的连接信息
-            }
+        		pool.setUrl("jdbc:p6spy:sqlite:./db/test1.db");
+        	} else if (databaseId.equals("second")) {
+        		pool.setUrl("jdbc:p6spy:sqlite:./db/test2.db");
+        	} else if (databaseId.equals("third")) {
+        		pool.setUrl("jdbc:p6spy:sqlite:./db/test3.db");
+        	}
         }; 
     } 
  
