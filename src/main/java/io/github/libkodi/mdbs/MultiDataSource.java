@@ -11,15 +11,15 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import io.github.libkodi.mdbs.config.DataSource;
+import io.github.libkodi.mdbs.config.DataSourceProperty;
 import io.github.libkodi.mdbs.entity.SqlSessionFactoryEntity;
 import io.github.libkodi.mdbs.interfaces.InitialDataSource;
 import io.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
 import io.github.libkodi.mdbs.interfaces.SqlSessionCallback;
-import io.github.libkodi.mdbs.properties.MultipartDataSourceProperties;
+import io.github.libkodi.mdbs.properties.MultiDataSourceProperties;
 
-public class MultipartDataSource {
-	private static MultipartDataSource instance = null; // 单例
+public class MultiDataSource {
+	private static MultiDataSource instance = null; // 单例
 	/** 保存数据源 */
 	private HashMap<String, PooledDataSource> dataSourcePool = new HashMap<String, PooledDataSource>();
 	/** 保存会话 */
@@ -31,18 +31,18 @@ public class MultipartDataSource {
 	@Autowired
 	private InitialDataSource initialDataSource;
 	
-	private MultipartDataSourceProperties properties;
+	private MultiDataSourceProperties properties;
 	
-	public MultipartDataSourceProperties getProperties() {
+	public MultiDataSourceProperties getProperties() {
 		return properties;
 	}
 	
 	/**
 	 * 单例的实现
 	 */
-	public static MultipartDataSource getInstance(MultipartDataSourceProperties properties) {
+	public static MultiDataSource getInstance(MultiDataSourceProperties properties) {
 		if (instance == null) {
-			instance = new MultipartDataSource(properties);
+			instance = new MultiDataSource(properties);
 		}
 		
 		return instance;
@@ -51,7 +51,7 @@ public class MultipartDataSource {
 	/**
 	 * 构造函数
 	 */
-	private MultipartDataSource(MultipartDataSourceProperties properties) {
+	private MultiDataSource(MultiDataSourceProperties properties) {
 		this.properties = properties;
 		
 		/**
@@ -123,7 +123,7 @@ public class MultipartDataSource {
 	/**
 	 * 创建数据源
 	 */
-	public PooledDataSource getDataSource(String databaseId, DataSource info) {
+	public PooledDataSource getDataSource(String databaseId, DataSourceProperty info) {
 		synchronized (dataSourcePool) {
 			if (dataSourcePool.containsKey(databaseId)) {
 				return dataSourcePool.get(databaseId);
@@ -162,7 +162,7 @@ public class MultipartDataSource {
 					}
 				} else {
 					pool = new PooledDataSource();
-					initialDataSource.init(databaseId, pool, properties);
+					initialDataSource.init(databaseId, pool, this);
 				}
 				
 				dataSourcePool.put(databaseId, pool);
@@ -179,7 +179,7 @@ public class MultipartDataSource {
 	/**
 	 * 创建会话
 	 */
-	public SqlSessionFactory getSqlSessionFactory(String databaseId, DataSource info) throws Exception {
+	public SqlSessionFactory getSqlSessionFactory(String databaseId, DataSourceProperty info) throws Exception {
 		synchronized (factoryPool) {
 			if (factoryPool.containsKey(databaseId)) {
 				SqlSessionFactoryEntity entity = factoryPool.get(databaseId);
@@ -192,7 +192,7 @@ public class MultipartDataSource {
 				bean.setDataSource(pool);
 				
 				if (initialSqlSessionFactory != null) {
-					initialSqlSessionFactory.init(databaseId, pool, bean, properties);
+					initialSqlSessionFactory.init(databaseId, bean, this);
 				}
 				
 				SqlSessionFactory factory = bean.getObject();
@@ -210,7 +210,7 @@ public class MultipartDataSource {
 		return getSqlSessionFactory(databaseId, null);
 	}
 	
-	public SqlSession getSqlSession(String databaseId, DataSource info) throws Exception {
+	public SqlSession getSqlSession(String databaseId, DataSourceProperty info) throws Exception {
 		SqlSessionFactory factory = getSqlSessionFactory(databaseId, info);
 		
 		if (factory != null) {

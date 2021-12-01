@@ -6,24 +6,24 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import io.github.libkodi.mdbs.properties.MultipartDataSourceProperties;
+import io.github.libkodi.mdbs.properties.MultiDataSourceProperties;
 
 @Configuration
-@EnableConfigurationProperties(MultipartDataSourceProperties.class)
-public class MultipartDataSourceConfiguration {
+@EnableConfigurationProperties(MultiDataSourceProperties.class)
+public class MultiDataSourceConfiguration {
 	/**
 	 * 配置信息
 	 */
 	@Autowired
-	private MultipartDataSourceProperties properties;
+	private MultiDataSourceProperties properties;
 	
 	/**
 	 * 
 	 * 创建一个bean供Service注入
 	 */
 	@Bean
-	@ConditionalOnMissingBean(MultipartDataSource.class)
-	public MultipartDataSource getMultipartDataSource() {
-		return MultipartDataSource.getInstance(properties);
+	@ConditionalOnMissingBean(MultiDataSource.class)
+	public MultiDataSource getMultipartDataSource() {
+		return MultiDataSource.getInstance(properties);
 	}
 }

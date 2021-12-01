@@ -3,7 +3,7 @@ package io.github.libkodi.mdbs.config;
 import lombok.Data;
 
 @Data
-public class DataSource {
+public class DataSourceProperty {
 	private String driver;
 	private String url;
 	private String username;
