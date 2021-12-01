@@ -7,21 +7,16 @@
 - 自动移除超时的闲置连接
 
 ### 使用
-##### 1.下载本源码
-```
-git clone https://github.com/libkodi/mdbs.git
-```
-
-##### 2.引入
+##### 1.引入
 ```
 <dependency>
     <groupId>com.github.libkodi</groupId>
-    <artifactId>multipart-datasource</artifactId>
+    <artifactId>multi-datasource</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
 
-##### 3.设置配置信息
+##### 2.设置配置信息
 *在application.properties中添加如下配置*
 ```
 mdbs.refresh-period=1 # 查找过期闲置间隔(秒)
@@ -40,7 +35,7 @@ mdbs.info.primary.password=xxxx
 #mdbs.info.xxxx.password=xxx
 ```
 
-##### 4.创建一个Config文件来实现数据源与会话的初始化处理
+##### 3.创建一个Config文件来实现数据源与会话的初始化处理
 
 ```java
 import org.springframework.context.annotation.Bean;
@@ -48,7 +43,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
-import com.gitee.nowtd.mdbs.config.DataSource;
+import com.gitee.nowtd.mdbs.config.DataSourceProperty;
 import com.gitee.nowtd.mdbs.interfaces.InitialDataSource;
 import com.gitee.nowtd.mdbs.interfaces.InitialSqlSessionFactory;
 
@@ -66,9 +61,9 @@ public class MultiDataSourceConfiguration {
      */
     @Bean
     public InitialDataSource initialDataSource() {
-        return (databaseId, pool, properties) -> {
+        return (databaseId, pool, ctx) -> {
             if (databaseId.equals("primary")) {
-                DataSource info = properties.getInfo(databaseId);
+                DataSourceProperty info = ctx.getProperties().getInfo(databaseId);
                 pool.setUrl(info.getUrl());
                 pool.setDriver(info.getDriver());
                 pool.setUsername(info.getUsername());
@@ -91,7 +86,7 @@ public class MultiDataSourceConfiguration {
      */
     @Bean
     public InitialSqlSessionFactory initialSqlSessionFactory() {
-        return (databaseId, pool, factoryBean, properties) -> {
+        return (databaseId, factoryBean, ctx) -> {
             try {
                 if (mappers == null) {
                     mappers = new PathMatchingResourcePatternResolver().getResources("classpath*:/mapper/*.xml");
@@ -108,7 +103,7 @@ public class MultiDataSourceConfiguration {
 
 ```
 
-##### 5. 注入使用
+##### 4. 注入使用
 ```java
 import java.util.List;
 import java.util.Map;
@@ -117,7 +112,7 @@ import org.apache.ibatis.session.SqlSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.gitee.nowtd.mdbs.MultipartDataSource;
+import com.gitee.nowtd.mdbs.MultiDataSource;
 import com.gitee.nowtd.mdbs.interfaces.SqlSessionCallback;
 import com.test.dao.TestMapper;
 
@@ -130,7 +125,7 @@ public class TestService {
      * 注入数据源管理
      */
     @Autowired
-    private MultipartDataSource mdbs;
+    private MultiDataSource mdbs;
     
     /**
      * 
@@ -189,7 +184,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
-import com.gitee.nowtd.mdbs.MultipartDataSource;
+import com.gitee.nowtd.mdbs.MultiDataSource;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -197,7 +192,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DatabaseConfiguration {
     @Autowired
-    private MultipartDataSource mdbs;
+    private MultiDataSource mdbs;
     
     @Bean
     @Primary
