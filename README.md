@@ -1,16 +1,19 @@
 # 多数据源封装库
 
-### 功能
-- 使用mybatis来处理所有连接
-- 使用PooledDataSource自动管理连接池
-- 动态创建和获取与删除(关闭)
-- 自动移除超时的闲置连接
+### 概述
+本库使用了mybatis与PooledDataSource来管理数据库的操作与各个连接池。  
+本库创建的PooledDataSource与SqlSessionFactory是完全复用的，以一个databaseId为键名保存，只要键名不变或没有超过指定的闲置时间，使用同一databaseId获取到的PooledDataSource与SqlSessionFactory永远是同一个。  
+本库可以完全不需要在application.properties中指定任何配置，数据库的连接信息完全可以在程序运行后动态指定。  
+
+### 注意点
+- 本库只封装了多数据源的操作，并没有默认添加各个数据库的驱动包，所有在使用时需要另外在各自的项目中添加需要的数据库驱动包
+- 由于是动态创建的数据库连接，在使用mybatis的数据库操作时需要使用xml方式的mapper
 
 ### 使用
 ##### 1.引入
 ```
 <dependency>
-    <groupId>com.github.libkodi</groupId>
+    <groupId>io.github.libkodi.mdbs</groupId>
     <artifactId>multi-datasource</artifactId>
     <version>1.0.0</version>
 </dependency>
@@ -19,8 +22,8 @@
 ##### 2.设置配置信息
 *在application.properties中添加如下配置*
 ```
-mdbs.refresh-period=1 # 查找过期闲置间隔(秒)
-mdbs.idle-timeout=3600 # 连接闲置过期时间(秒)
+mdbs.refresh-period=1 # 查找过期闲置间隔(秒), 默认为: 1
+mdbs.idle-timeout=3600 # 连接闲置过期时间(秒), 默认为: 3600
 
 # 配置主数据库信息
 mdbs.info.primary.url=xxxxxx
@@ -38,195 +41,128 @@ mdbs.info.primary.password=xxxx
 ##### 3.创建一个Config文件来实现数据源与会话的初始化处理
 
 ```java
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+/** 
+ *  
+ * 初始化数据源 
+ * 
+ * @description 为不同数据源设置连接参数 
+ * @return InitialDataSource 
+ */ 
+@Bean 
+public InitialDataSource initialDataSource() { 
+    return (databaseId, pool, ctx) -> { 
+        if (databaseId.equals("primary")) {
+            DataSourceProperty info = ctx.getProperties().getInfo(databaseId);
+            pool.setUrl(info.getUrl());
+            pool.setDriver(info.getDriver());
+            pool.setUsername(info.getUsername());
+            pool.setPassword(info.getPassword());
+        } else {
+            // 1.可以通过主数据库查出连接信息
+            // 2.也可以通过properties取出设置好的连接信息
+        }
+    }; 
+} 
 
-import com.gitee.nowtd.mdbs.config.DataSourceProperty;
-import com.gitee.nowtd.mdbs.interfaces.InitialDataSource;
-import com.gitee.nowtd.mdbs.interfaces.InitialSqlSessionFactory;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Configuration
-@Slf4j
-public class MultiDataSourceConfiguration {
-    /**
-     * 
-     * 初始化数据源
-     *
-     * @description 为不同数据源设置连接参数
-     * @return InitialDataSource
-     */
-    @Bean
-    public InitialDataSource initialDataSource() {
-        return (databaseId, pool, ctx) -> {
-            if (databaseId.equals("primary")) {
-                DataSourceProperty info = ctx.getProperties().getInfo(databaseId);
-                pool.setUrl(info.getUrl());
-                pool.setDriver(info.getDriver());
-                pool.setUsername(info.getUsername());
-                pool.setPassword(info.getPassword());
-            } else {
-                // 1.可以通过主数据库查出连接信息
-                // 2.也可以通过properties取出设置好的连接信息
-            }
-        };
-    }
-    
-    private static Resource[] mappers = null;
-    
-    /**
-     * 
-     * 初始化mybatis设置
-     *
-     * @description 为不同的mybatis连接设置不同的参数和绑定mapper与添加工具之类的
-     * @return InitialSqlSessionFactory
-     */
-    @Bean
-    public InitialSqlSessionFactory initialSqlSessionFactory() {
-        return (databaseId, factoryBean, ctx) -> {
-            try {
-                if (mappers == null) {
-                    mappers = new PathMatchingResourcePatternResolver().getResources("classpath*:/mapper/*.xml");
-                }
-                
-                factoryBean.setMapperLocations(mappers);
-            } catch(Exception e) {
-                log.error("Failed to load mapper:", e.getMessage());
-            }
-        };
-    }
+/** 
+ *  
+ * 初始化mybatis设置 
+ * 
+ * @description 为不同的mybatis连接设置不同的参数和绑定mapper与添加工具之类的 
+ * @return InitialSqlSessionFactory 
+ */ 
+@Bean 
+public InitialSqlSessionFactory initialSqlSessionFactory() { 
+    return (databaseId, factoryBean, ctx) -> { 
+        try { 
+            factoryBean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath*:/mapper/*.xml")); 
+        } catch(Exception e) { 
+            log.error("Failed to load mapper:", e.getMessage()); 
+        } 
+    }; 
 }
-
-
 ```
 
 ##### 4. 注入使用
 ```java
-import java.util.List;
-import java.util.Map;
+/**
+ * 注入数据源管理
+ */
+@Autowired
+private MultiDataSource mdbs;
 
-import org.apache.ibatis.session.SqlSession;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import com.gitee.nowtd.mdbs.MultiDataSource;
-import com.gitee.nowtd.mdbs.interfaces.SqlSessionCallback;
-import com.test.dao.TestMapper;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-@Service
-public class TestService {
-    /**
-     * 注入数据源管理
-     */
-    @Autowired
-    private MultiDataSource mdbs;
+/**
+ * 
+ * 调用方法一
+ *
+ * @description 这种方式打开的SqlSession需要自行在函数中释放连接池的占用
+ * @return Object
+ */
+public Object tables(String databaseId) {
+    SqlSession session = null;
     
-    /**
-     * 
-     * 获取数据库下的所有表
-     *
-     * @description 这种方式打开的SqlSession需要自行在函数中关闭翻译连接池的占用
-     * @return List<Map<String, String>>
-     */
-    public List<Map<String, String>> tables(String databaseId) {
-        SqlSession session = null;
-        
-        try {
-            session = mdbs.getSqlSession(databaseId);
-            TestMapper testMaper = session.getMapper(TestMapper.class);
-            List<Map<String, String>> res = testMaper.tables();
+    try {
+        session = mdbs.getSqlSession(databaseId);
+        ...
+        session.close();
+        ...
+    } catch (Exception e) {
+        log.error("", e.getMessage());
+    } finally {
+        if (session != null) {
             session.close();
-            return res;
-        } catch (Exception e) {
-            log.error("", e.getMessage());
-        } finally {
-            if (session != null) {
-                session.close();
-            }
         }
-        
-        return null;
     }
     
-    /**
-     * 
-     * 获取数据库下的所有表
-     *
-     * @description 这种方式打开的SqlSession不需要手动释放，在方法内部已经封装了释放处理
-     * @return List<Map<String, String>>
-     * @throws Exception 
-     */
-    public List<Map<String, String>> tablesWithCallback(String databaseId) throws Exception {
-        return mdbs.openSession(databaseId, (SqlSessionCallback<List<Map<String, String>>>) session -> {
-            TestMapper testMaper = session.getMapper(TestMapper.class);
-            return testMaper.tables();
-        });
-    }
+    return null;
 }
 
+/**
+ * 
+ * 调用方法二
+ *
+ * @description 这种方式打开的SqlSession不需要手动释放，在方法内部已经封装了释放处理
+ * @return List<Map<String, String>>
+ * @throws Exception 
+ */
+public Object tablesWithCallback(String databaseId) throws Exception {
+    return mdbs.openSession(databaseId, (SqlSessionCallback<Object>) session -> {
+        ...
+    });
+}
 ```
 
-### 以本项目为spring boot项目配置主数据库(非直接在application.properties中的设置)
+### 手动配置主数据源
 ```java
-import javax.sql.DataSource;
+@Autowired 
+private MultiDataSource mdbs; 
 
-import org.apache.ibatis.session.SqlSessionFactory;
-import org.mybatis.spring.SqlSessionTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+@Bean 
+@Primary 
+public DataSource getDataSource() { 
+    return mdbs.getDataSource("primary"); 
+} 
 
-import com.gitee.nowtd.mdbs.MultiDataSource;
+@Bean 
+@Primary 
+public SqlSessionFactory getSqlSessionFactory() { 
+    try { 
+        return mdbs.getSqlSessionFactory("primary"); 
+    } catch (Exception e) { 
+        log.error("Failed to load sqlsessionfactory", e.getMessage()); 
+        return null; 
+    } 
+} 
 
-import lombok.extern.slf4j.Slf4j;
+@Primary 
+@Bean 
+public DataSourceTransactionManager getTransactionManager(DataSource ds) { 
+    return new DataSourceTransactionManager(ds); 
+} 
 
-@Configuration
-@Slf4j
-public class DatabaseConfiguration {
-    @Autowired
-    private MultiDataSource mdbs;
-    
-    @Bean
-    @Primary
-    public DataSource getDataSource() {
-        return mdbs.getDataSource("primary");
-    }
-    
-    @Bean
-    @Primary
-    public SqlSessionFactory getSqlSessionFactory() {
-        try {
-            return mdbs.getSqlSessionFactory("primary");
-        } catch (Exception e) {
-            log.error("Failed to load sqlsessionfactory", e.getMessage());
-            return null;
-        }
-    }
-    
-    @Primary
-    @Bean
-    public DataSourceTransactionManager getTransactionManager() {
-        return new DataSourceTransactionManager(mdbs.getDataSource("primary"));
-    }
-    
-    @Primary
-    @Bean
-    public SqlSessionTemplate getSqlSessionTemplate() {
-        try {
-            return new SqlSessionTemplate(mdbs.getSqlSessionFactory("primary"));
-        } catch (Exception e) {
-            log.error("Failed to load SqlSessionTemplate", e.getMessage());
-            return null;
-        }
-    }
+@Primary 
+@Bean 
+public SqlSessionTemplate getSqlSessionTemplate(SqlSessionFactory factory) { 
+    return new SqlSessionTemplate(factory); 
 }
-
 ```
