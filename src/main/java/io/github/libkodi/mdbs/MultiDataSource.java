@@ -1,7 +1,5 @@
 package io.github.libkodi.mdbs;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
@@ -12,18 +10,18 @@ import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import io.github.libkodi.mdbs.config.DataSourceProperty;
-import io.github.libkodi.mdbs.entity.SqlSessionFactoryEntity;
+import io.github.libkodi.mdbs.entity.Connection;
 import io.github.libkodi.mdbs.interfaces.InitialDataSource;
 import io.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
-import io.github.libkodi.mdbs.interfaces.SqlSessionCallback;
+import io.github.libkodi.mdbs.interfaces.Callback;
 import io.github.libkodi.mdbs.properties.MultiDataSourceProperties;
+import io.github.libkodi.objectlist.withexpires.PeriodMap;
+import io.github.libkodi.objectlist.withexpires.PeriodMapNode;
 
 public class MultiDataSource {
 	private static MultiDataSource instance = null; // 单例
-	/** 保存数据源 */
-	private HashMap<String, PooledDataSource> dataSourcePool = new HashMap<String, PooledDataSource>();
-	/** 保存会话 */
-	private HashMap<String, SqlSessionFactoryEntity> factoryPool = new HashMap<String, SqlSessionFactoryEntity>();
+	private PeriodMap<Connection> data = new PeriodMap<Connection>();
+	private Object mutex;
 	
 	@Autowired
 	private InitialSqlSessionFactory initialSqlSessionFactory;
@@ -53,6 +51,7 @@ public class MultiDataSource {
 	 */
 	private MultiDataSource(MultiDataSourceProperties properties) {
 		this.properties = properties;
+		mutex = this;
 		
 		/**
 		 * 开线程处理超时闲置的连接
@@ -65,30 +64,7 @@ public class MultiDataSource {
 				
 				while (true) {
 					try {
-						ArrayList<String> keys = new ArrayList<String>();
-						
-						Iterator<Entry<String, SqlSessionFactoryEntity>> it = factoryPool.entrySet().iterator();
-						
-						while (it.hasNext()) {
-							Entry<String, SqlSessionFactoryEntity> next = it.next();
-							
-							if (next.getValue().isValid(properties.getIdleTimeout())) {
-								keys.add(next.getKey());
-							}
-						}
-						
-						if (keys.size() > 0) {
-							synchronized (factoryPool) {
-								synchronized (dataSourcePool) {
-									for (String key : keys) {
-										try {
-											factoryPool.remove(key);
-											dataSourcePool.remove(key).forceCloseAll();
-										} catch (Exception e) {}
-									}
-								}
-							}
-						}
+						data.update();
 					} catch (Exception e) {}
 					
 					try {
@@ -103,115 +79,211 @@ public class MultiDataSource {
 	}
 	
 	/**
+	 * 
 	 * 判断是否有指定数据源
+	 *
+	 * @param id 数据源ID
+	 * @return true/false
 	 */
-	public boolean containsDataSource(String databaseId) {
-		synchronized (dataSourcePool) {
-			return dataSourcePool.containsKey(databaseId);
+	public boolean containsDataSource(String id) {
+		synchronized (mutex) {
+			if (data.containsKey(id)) {
+				Connection conn = data.get(id);
+				return conn.getPooledDataSource() != null;
+			} else {
+				return false;
+			}
 		}
 	}
 	
 	/**
+	 * 
 	 * 判断是否有指定会话
+	 *
+	 * @param id 数据源ID
+	 * @return true/false
 	 */
-	public boolean containsFactory(String databaseId) {
-		synchronized (factoryPool) {
-			return factoryPool.containsKey(databaseId);
+	public boolean containsFactory(String id) {
+		synchronized (mutex) {
+			if (data.containsKey(id)) {
+				Connection conn = data.get(id);
+				return conn.getSqlSessionFacroty() != null;
+			} else {
+				return false;
+			}
 		}
 	}
 	
 	/**
+	 * 
 	 * 创建数据源
+	 *
+	 * @param id 数据源ID
+	 * @param info 连接信息
+	 * @return PooledDataSource
 	 */
-	public PooledDataSource getDataSource(String databaseId, DataSourceProperty info) {
-		synchronized (dataSourcePool) {
-			if (dataSourcePool.containsKey(databaseId)) {
-				return dataSourcePool.get(databaseId);
-			} else {
-				PooledDataSource pool = null;
-				
-				if (info != null && !dataSourcePool.containsKey(databaseId)) {
-					pool = new PooledDataSource();
-					pool.setDriver(info.getDriver());
-					pool.setUrl(info.getUrl());
-					pool.setUsername(info.getUsername());
-					pool.setPassword(info.getPassword());
-					
-					if (info.getAutoCommit() != null) {
-						pool.setDefaultAutoCommit(info.getAutoCommit());
-					}
-					
-					if (info.getDefaultTransactionIsolationLevel() != null) {
-						pool.setDefaultTransactionIsolationLevel(info.getDefaultTransactionIsolationLevel());
-					}
-					
-					if (info.getMaximumActiveConnections() != null) {
-						pool.setPoolMaximumActiveConnections(info.getMaximumActiveConnections());
-					}
-					
-					if (info.getLoginTimeout() != null) {
-						pool.setLoginTimeout(info.getLoginTimeout());
-					}
-					
-					if (info.getMaximumCheckoutTime() != null) {
-						pool.setPoolMaximumCheckoutTime(info.getMaximumCheckoutTime());
-					}
-					
-					if (info.getMaximumIdleConnections() != null) {
-						pool.setPoolMaximumIdleConnections(info.getMaximumIdleConnections());
-					}
-				} else {
-					pool = new PooledDataSource();
-					initialDataSource.init(databaseId, pool, this);
-				}
-				
-				dataSourcePool.put(databaseId, pool);
-				
-				return pool;
-			}
+	public PooledDataSource getDataSource(String id, DataSourceProperty info) {
+		synchronized (mutex) {
+			return __getDataSource(id, info);
 		}
-	}
-	
-	public PooledDataSource getDataSource(String databaseId) {
-		return getDataSource(databaseId, null);
 	}
 	
 	/**
-	 * 创建会话
+	 * 
+	 * 创建数据源
+	 *
+	 * @param id 数据源ID
+	 * @param info 连接信息
+	 * @return PooledDataSource
 	 */
-	public SqlSessionFactory getSqlSessionFactory(String databaseId, DataSourceProperty info) throws Exception {
-		synchronized (factoryPool) {
-			if (factoryPool.containsKey(databaseId)) {
-				SqlSessionFactoryEntity entity = factoryPool.get(databaseId);
-				entity.renew();
-				return entity.getFactory();
+	private PooledDataSource __getDataSource(String id, DataSourceProperty info) {
+		if (data.containsKey(id)) {
+			Connection conn = data.get(id);
+			
+			if (conn != null) {
+				return conn.getPooledDataSource();
 			} else {
-				PooledDataSource pool = getDataSource(databaseId, info);
+				return null;
+			}
+		} else {
+			Connection conn = new Connection();
+			PooledDataSource pool = null;
+			
+			if (info != null && !data.containsKey(id)) {
+				pool = new PooledDataSource();
+				pool.setDriver(info.getDriver());
+				pool.setUrl(info.getUrl());
+				pool.setUsername(info.getUsername());
+				pool.setPassword(info.getPassword());
 				
-				SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
-				bean.setDataSource(pool);
-				
-				if (initialSqlSessionFactory != null) {
-					initialSqlSessionFactory.init(databaseId, bean, this);
+				if (info.getAutoCommit() != null) {
+					pool.setDefaultAutoCommit(info.getAutoCommit());
 				}
 				
-				SqlSessionFactory factory = bean.getObject();
-				SqlSessionFactoryEntity entity = new SqlSessionFactoryEntity();
-				entity.setFactory(factory);
+				if (info.getDefaultTransactionIsolationLevel() != null) {
+					pool.setDefaultTransactionIsolationLevel(info.getDefaultTransactionIsolationLevel());
+				}
 				
-				factoryPool.put(databaseId, entity);
+				if (info.getMaximumActiveConnections() != null) {
+					pool.setPoolMaximumActiveConnections(info.getMaximumActiveConnections());
+				}
 				
-				return factory;
+				if (info.getLoginTimeout() != null) {
+					pool.setLoginTimeout(info.getLoginTimeout());
+				}
+				
+				if (info.getMaximumCheckoutTime() != null) {
+					pool.setPoolMaximumCheckoutTime(info.getMaximumCheckoutTime());
+				}
+				
+				if (info.getMaximumIdleConnections() != null) {
+					pool.setPoolMaximumIdleConnections(info.getMaximumIdleConnections());
+				}
+				
+				conn.setPooledDataSource(pool);
+				conn.setMaxIdleTime(properties.getMaxIdleTime());
+			} else {
+				pool = new PooledDataSource();
+				conn.setPooledDataSource(pool);
+				conn.setMaxIdleTime(properties.getMaxIdleTime());
+				initialDataSource.init(this, id, conn);
+			}
+			
+			data.put(id, conn, conn.getMaxIdleTime(), conn.getMaxIdleTime());
+			
+			return pool;
+		}
+	}
+	
+	/**
+	 * 
+	 * 创建数据源
+	 *
+	 * @param id 数据源ID
+	 * @return PooledDataSource
+	 */
+	public PooledDataSource getDataSource(String id) {
+		return getDataSource(id, null);
+	}
+	
+	/**
+	 * 
+	 * 创建会话工厂
+	 *
+	 * @param id 数据源ID
+	 * @param info 连接信息
+	 * @return SqlSessionFactory
+	 * @throws Exception
+	 */
+	public SqlSessionFactory getSqlSessionFactory(String id, DataSourceProperty info) throws Exception {
+		synchronized (mutex) {
+			if (data.containsKey(id)) {
+				Connection conn = data.get(id);
+				
+				return createSqlSessionFactory(id, info, conn);
+			} else {
+				return createSqlSessionFactory(id, info, null);
 			}
 		}
 	}
 	
-	public SqlSessionFactory getSqlSessionFactory(String databaseId) throws Exception {
-		return getSqlSessionFactory(databaseId, null);
+	/**
+	 * 
+	 * 创建会话工厂
+	 *
+	 * @param id 数据源ID
+	 * @param info 连接信息
+	 * @param conn Connection对象
+	 * @return SqlSessionFactory
+	 * @throws Exception
+	 */
+	private SqlSessionFactory createSqlSessionFactory(String id, DataSourceProperty info, Connection conn) throws Exception {
+		PooledDataSource pool = __getDataSource(id, info);
+		
+		if (conn == null) {
+			conn = data.get(id);
+		}
+		
+		if (conn == null) {
+			return null;
+		}
+		
+		SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
+		bean.setDataSource(pool);
+		
+		if (initialSqlSessionFactory != null) {
+			initialSqlSessionFactory.init(this, id, bean);
+		}
+		
+		SqlSessionFactory factory = bean.getObject();
+		conn.setSqlSessionFacroty(factory);
+		
+		return factory;
 	}
 	
-	public SqlSession getSqlSession(String databaseId, DataSourceProperty info) throws Exception {
-		SqlSessionFactory factory = getSqlSessionFactory(databaseId, info);
+	/**
+	 * 
+	 * 创建会话工厂
+	 *
+	 * @param id 数据源ID
+	 * @return SqlSessionFactory
+	 * @throws Exception
+	 */
+	public SqlSessionFactory getSqlSessionFactory(String id) throws Exception {
+		return getSqlSessionFactory(id, null);
+	}
+	
+	/**
+	 * 
+	 * 创建会话连接
+	 *
+	 * @param id 数据源ID
+	 * @param info 连接信息
+	 * @return SqlSession
+	 * @throws Exception
+	 */
+	public SqlSession getSqlSession(String id, DataSourceProperty info) throws Exception {
+		SqlSessionFactory factory = getSqlSessionFactory(id, info);
 		
 		if (factory != null) {
 			return factory.openSession();
@@ -220,17 +292,33 @@ public class MultiDataSource {
 		}
 	}
 	
-	public SqlSession getSqlSession(String databaseId) throws Exception {
-		return getSqlSession(databaseId, null);
+	/**
+	 * 
+	 * 创建会话连接
+	 *
+	 * @param id 数据源ID
+	 * @return SqlSession
+	 * @throws Exception
+	 */
+	public SqlSession getSqlSession(String id) throws Exception {
+		return getSqlSession(id, null);
 	}
 	
-	public <T> T openSession(String databaseId, SqlSessionCallback<T> callback) throws Exception {
+	/**
+	 * 
+	 * 打开会话并调用回调，自关闭
+	 *
+	 * @param id 数据源ID
+	 * @return 执行结果
+	 * @throws Exception
+	 */
+	public <T> T openSession(String id, Callback<T> callback) throws Exception {
 		SqlSession session = null;
 		T result = null;
 		Exception error = null;
 		
 		try {
-			session = getSqlSession(databaseId);
+			session = getSqlSession(id);
 			result = callback.call(session);
 		} catch (Exception e) {
 			error = e;
@@ -247,32 +335,44 @@ public class MultiDataSource {
 		return result;
 	}
 	
-	public void close(String databaseId) {
-		synchronized (factoryPool) {
-			if (factoryPool.containsKey(databaseId)) {
-				factoryPool.remove(databaseId);
-			}
-			
-			synchronized (dataSourcePool) {
-				if (dataSourcePool.containsKey(databaseId)) {
-					dataSourcePool.remove(databaseId).forceCloseAll();
+	/**
+	 * 
+	 * 关闭数据源连接
+	 *
+	 * @param id 数据源ID
+	 */
+	public void close(String id) {
+		synchronized (mutex) {
+			if (data.containsKey(id)) {
+				Connection conn = data.remove(id);
+				
+				if (conn != null) {
+					PooledDataSource pool = conn.getPooledDataSource();
+					
+					if (pool != null) {
+						pool.forceCloseAll();
+					}
 				}
 			}
 		}
 	}
 	
-	public void closeAll() {
-		synchronized (dataSourcePool) {
-			synchronized (factoryPool) {
-				Iterator<Entry<String, PooledDataSource>> iter = dataSourcePool.entrySet().iterator();
+	/**
+	 * 关闭所有数据源连接
+	 */
+	public void closeAll() throws Exception {
+		synchronized (mutex) {
+			Iterator<Entry<String, PeriodMapNode<Connection>>> iter = data.iterator();
+			
+			while(iter.hasNext()) {
+				Entry<String, PeriodMapNode<Connection>> next = iter.next();
 				
-				while (iter.hasNext()) {
-					iter.next().getValue().forceCloseAll();
-				}
-				
-				dataSourcePool.clear();
-				factoryPool.clear();
+				PeriodMapNode<Connection> node = next.getValue();
+				Connection conn = node.getValue();
+				conn.getPooledDataSource().forceCloseAll();
 			}
+			
+			data.clear();
 		}
 	}
 	

@@ -11,7 +11,7 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "mdbs")
 public class MultiDataSourceProperties {
 	private int refreshPeriod = 1;
-	private long idleTimeout = 3600;
+	private int maxIdleTime = 3600;
 	private HashMap<String, DataSourceProperty> info;
 	
 	public DataSourceProperty getInfo(String key) {
