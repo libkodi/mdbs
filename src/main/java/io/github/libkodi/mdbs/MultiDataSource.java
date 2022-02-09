@@ -11,12 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import io.github.libkodi.mdbs.config.DataSourceProperty;
 import io.github.libkodi.mdbs.entity.Connection;
+import io.github.libkodi.mdbs.interfaces.Callback;
 import io.github.libkodi.mdbs.interfaces.InitialDataSource;
 import io.github.libkodi.mdbs.interfaces.InitialSqlSessionFactory;
-import io.github.libkodi.mdbs.interfaces.Callback;
 import io.github.libkodi.mdbs.properties.MultiDataSourceProperties;
 import io.github.libkodi.objectlist.withexpires.PeriodMap;
-import io.github.libkodi.objectlist.withexpires.PeriodMapNode;
 
 public class MultiDataSource {
 	private static MultiDataSource instance = null; // 单例
@@ -362,13 +361,11 @@ public class MultiDataSource {
 	 */
 	public void closeAll() throws Exception {
 		synchronized (mutex) {
-			Iterator<Entry<String, PeriodMapNode<Connection>>> iter = data.iterator();
+			Iterator<Entry<String, Connection>> iter = data.iterator();
 			
 			while(iter.hasNext()) {
-				Entry<String, PeriodMapNode<Connection>> next = iter.next();
-				
-				PeriodMapNode<Connection> node = next.getValue();
-				Connection conn = node.getValue();
+				Entry<String, Connection> next = iter.next();
+				Connection conn = next.getValue();
 				conn.getPooledDataSource().forceCloseAll();
 			}
 			
